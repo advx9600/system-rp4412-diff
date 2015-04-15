@@ -676,6 +676,8 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
         return type;
     }
 
+    char property[PROPERTY_VALUE_MAX];
+
     const HWComposer& hwc(getHwComposer());
     float xdpi = hwc.getDpiX(type);
     float ydpi = hwc.getDpiY(type);
@@ -727,6 +729,16 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
     info->h = hwc.getHeight(type);
     info->xdpi = xdpi;
     info->ydpi = ydpi;
+    if (property_get("ro.sf.hwrotation", property, NULL) > 0) {
+	switch( atoi(property) )
+	{
+	    case 90:
+	    case 270:\
+		info->h = hwc.getWidth(type);\
+		info->w = hwc.getHeight(type);\
+		break;
+	}
+    }
     info->fps = float(1e9 / hwc.getRefreshPeriod(type));
 
     // All non-virtual displays are currently considered secure.

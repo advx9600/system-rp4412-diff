@@ -387,6 +387,27 @@ status_t DisplayDevice::orientationToTransfrom(
     return NO_ERROR;
 }
 
+static int getRotatinVal(int orientation)
+{
+    int val=0;
+    switch(orientation)
+    {
+	case DisplayState::eOrientation90: val = 90;break;
+	case DisplayState::eOrientation180: val = 180;break;
+	case DisplayState::eOrientation270: val = 270;break;
+    }
+
+    return val;
+}
+
+#include <fcntl.h>
+static void print_msg(const char* msg)
+{
+   int fd = open("/dev/ttySAC2",O_RDWR);
+   write(fd,msg,strlen(msg));
+   close(fd);
+}
+
 void DisplayDevice::setProjection(int orientation,
         const Rect& newViewport, const Rect& newFrame) {
     Rect viewport(newViewport);
@@ -394,14 +415,30 @@ void DisplayDevice::setProjection(int orientation,
 
     const int w = mDisplayWidth;
     const int h = mDisplayHeight;
+    char property[PROPERTY_VALUE_MAX];
+    int  setRotation=0;
 
     Transform R;
+
+    if (property_get("ro.sf.hwrotation", property, NULL) > 0) {
+	setRotation = atoi(property) + getRotatinVal(orientation);
+	switch(setRotation)
+	{
+	    case 90: orientation = DisplayState::eOrientation90; break;
+	    case 180: orientation = DisplayState::eOrientation180; break;
+	    case 270: orientation = DisplayState::eOrientation270; break;
+	}
+    }
+
     DisplayDevice::orientationToTransfrom(orientation, w, h, &R);
 
     if (!frame.isValid()) {
         // the destination frame can be invalid if it has never been set,
         // in that case we assume the whole display frame.
         frame = Rect(w, h);
+        if (R.getOrientation() & Transform::ROT_90) {
+           swap(frame.right, frame.bottom);
+	}
     }
 
     if (viewport.isEmpty()) {
